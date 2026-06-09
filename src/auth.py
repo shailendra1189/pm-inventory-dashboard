@@ -3,10 +3,133 @@ import os
 import re
 import yaml
 import bcrypt
+import json
+import urllib.parse
 from yaml.loader import SafeLoader
 import streamlit as st
 import streamlit_authenticator as stauth
 from src.config import BASE_DIR
+
+# ─── Google SSO helpers ───────────────────────────────────────────────────────
+
+ALLOWED_DOMAIN = "mosaicwellness.in"
+
+def _get_google_oauth_config():
+    """Read Google OAuth client ID and secret from Streamlit secrets or env vars."""
+    try:
+        client_id     = st.secrets.get("GOOGLE_CLIENT_ID", "")
+        client_secret = st.secrets.get("GOOGLE_CLIENT_SECRET", "")
+    except Exception:
+        client_id     = os.environ.get("GOOGLE_CLIENT_ID", "")
+        client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    return client_id, client_secret
+
+
+def get_google_login_url():
+    """Build the Google OAuth2 authorization URL."""
+    client_id, _ = _get_google_oauth_config()
+    if not client_id:
+        return None
+
+    # Detect current app URL for redirect
+    try:
+        redirect_uri = st.secrets.get("GOOGLE_REDIRECT_URI", "")
+    except Exception:
+        redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "")
+
+    if not redirect_uri:
+        # Auto-detect from Streamlit query params context
+        redirect_uri = "https://pm-inventory-dashboard-2maa5vzccgf8abvkck6wmu.streamlit.app/"
+
+    params = {
+        "client_id":     client_id,
+        "redirect_uri":  redirect_uri,
+        "response_type": "code",
+        "scope":         "openid email profile",
+        "access_type":   "online",
+        "prompt":        "select_account",
+        "hd":            ALLOWED_DOMAIN,   # restricts picker to mosaicwellness.in accounts
+    }
+    return "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(params)
+
+
+def handle_google_callback():
+    """
+    Called on every page load. If ?code=... is in the URL, exchange it for
+    user info and set session_state.  Returns True if SSO login succeeded.
+    """
+    import requests as _req
+
+    params = st.query_params
+    code = params.get("code")
+    if not code:
+        return False
+
+    client_id, client_secret = _get_google_oauth_config()
+    if not client_id:
+        return False
+
+    try:
+        redirect_uri = st.secrets.get("GOOGLE_REDIRECT_URI", "")
+    except Exception:
+        redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "")
+    if not redirect_uri:
+        redirect_uri = "https://pm-inventory-dashboard-2maa5vzccgf8abvkck6wmu.streamlit.app/"
+
+    # Exchange code for tokens
+    token_resp = _req.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "code":          code,
+            "client_id":     client_id,
+            "client_secret": client_secret,
+            "redirect_uri":  redirect_uri,
+            "grant_type":    "authorization_code",
+        },
+        timeout=10,
+    )
+    if token_resp.status_code != 200:
+        st.error("Google login failed — could not exchange code for token.")
+        return False
+
+    access_token = token_resp.json().get("access_token")
+
+    # Fetch user profile
+    user_resp = _req.get(
+        "https://www.googleapis.com/oauth2/v2/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=10,
+    )
+    if user_resp.status_code != 200:
+        st.error("Google login failed — could not fetch user info.")
+        return False
+
+    user_info = user_resp.json()
+    email     = user_info.get("email", "")
+    name      = user_info.get("name", email)
+
+    # Enforce domain restriction
+    if not email.endswith(f"@{ALLOWED_DOMAIN}"):
+        st.error(f"❌ Access denied. Only @{ALLOWED_DOMAIN} accounts are allowed.")
+        st.query_params.clear()
+        return False
+
+    # Set session as authenticated
+    st.session_state["authentication_status"] = True
+    st.session_state["name"]                  = name
+    st.session_state["username"]              = email
+    st.session_state["email"]                 = email
+    st.session_state["auth_method"]           = "google"
+
+    # Assign role: admin for shailendra, manager for all others in domain
+    if email == "shailendra@mosaicwellness.in":
+        st.session_state["role"] = "admin"
+    else:
+        st.session_state["role"] = "manager"
+
+    # Clear the ?code= from URL so refresh doesn't re-trigger
+    st.query_params.clear()
+    return True
 
 
 def _load_config():
@@ -145,13 +268,13 @@ def get_authenticator():
 def require_auth():
     """
     Call at the top of every sub-page.
-    - Silently checks the auth cookie (no login form rendered).
+    - Silently checks the auth cookie OR Google SSO session.
     - Returns (authenticator, config) when the user is authenticated.
     - Shows a redirect message and stops execution if not authenticated.
     """
     authenticator, config = get_authenticator()
 
-    # Check session_state first (fastest path — already authenticated this session)
+    # Check session_state first (covers Google SSO + existing cookie sessions)
     if st.session_state.get("authentication_status"):
         return authenticator, config
 
@@ -172,14 +295,27 @@ def require_auth():
 
 def sidebar_nav(authenticator):
     with st.sidebar:
-        st.markdown(f"**👤 {st.session_state.get('name', 'User')}**")
-        try:
-            authenticator.logout("Logout", location="sidebar")
-        except Exception:
-            if st.button("Logout"):
-                for key in ["authentication_status", "name", "username"]:
+        name  = st.session_state.get("name", "User")
+        email = st.session_state.get("email", "")
+        method = st.session_state.get("auth_method", "password")
+
+        if method == "google":
+            st.markdown(f"**👤 {name}**")
+            st.caption(f"🔵 Google SSO · {email}")
+            if st.button("Logout", key="google_logout"):
+                for key in ["authentication_status", "name", "username",
+                            "email", "role", "auth_method"]:
                     st.session_state.pop(key, None)
                 st.rerun()
+        else:
+            st.markdown(f"**👤 {name}**")
+            try:
+                authenticator.logout("Logout", location="sidebar")
+            except Exception:
+                if st.button("Logout"):
+                    for key in ["authentication_status", "name", "username"]:
+                        st.session_state.pop(key, None)
+                    st.rerun()
         st.divider()
         st.page_link("streamlit_app.py",                 label="Overview",             icon="🏠")
         st.page_link("pages/1_Mother_Hub.py",           label="Mother Hub",           icon="🏭")

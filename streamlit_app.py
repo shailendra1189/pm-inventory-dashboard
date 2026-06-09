@@ -9,7 +9,7 @@ import plotly.express as px
 from src import database as db
 from src import data_processor as dp
 from src.config import CRITICAL_DOI, LOW_DOI, BASE_DIR
-from src.auth import get_authenticator, sidebar_nav
+from src.auth import get_authenticator, sidebar_nav, handle_google_callback, get_google_login_url
 
 st.set_page_config(
     page_title="PM Inventory Dashboard",
@@ -20,14 +20,21 @@ st.set_page_config(
 
 db.init_db()
 
-# ─── Authentication (login form lives only on this page) ──────────────────────
+# ─── Authentication ────────────────────────────────────────────────────────────
 authenticator, config = get_authenticator()
 
-# Check existing cookie first (silent)
-authenticator.login(location="unrendered")
+# 1. Handle Google SSO callback (?code=... in URL)
+handle_google_callback()
+
+# 2. Check existing cookie / session (silent)
+if not st.session_state.get("authentication_status"):
+    try:
+        authenticator.login(location="unrendered")
+    except Exception:
+        pass
 
 if not st.session_state.get("authentication_status"):
-    # Show the actual login form
+    # ── Show login page ────────────────────────────────────────────────────
     st.markdown("""
     <div style='text-align:center;padding:2rem 0 1rem 0;'>
         <h1>📦 PM Inventory Tracking Dashboard</h1>
@@ -39,10 +46,37 @@ if not st.session_state.get("authentication_status"):
 
     col_l, col_m, col_r = st.columns([1, 1, 1])
     with col_m:
+        # ── Google SSO button ──────────────────────────────────────────────
+        google_url = get_google_login_url()
+        if google_url:
+            st.markdown(
+                f"""
+                <a href="{google_url}" target="_self" style="text-decoration:none;">
+                    <div style="
+                        display:flex; align-items:center; justify-content:center;
+                        background:#fff; border:1px solid #ddd; border-radius:8px;
+                        padding:10px 20px; cursor:pointer; font-size:15px;
+                        font-weight:500; color:#444; margin-bottom:16px;
+                        box-shadow:0 1px 3px rgba(0,0,0,0.1);
+                    ">
+                        <img src="https://www.google.com/favicon.ico" width="20"
+                             style="margin-right:10px;">
+                        Sign in with Google (@mosaicwellness.in)
+                    </div>
+                </a>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                "<div style='text-align:center;color:#aaa;margin-bottom:12px;'>── or use username & password ──</div>",
+                unsafe_allow_html=True,
+            )
+
+        # ── Username / password form ───────────────────────────────────────
         authenticator.login(location="main")
 
-    if st.session_state.get("authentication_status") is False:
-        st.error("❌ Incorrect username or password.")
+        if st.session_state.get("authentication_status") is False:
+            st.error("❌ Incorrect username or password.")
     st.stop()
 
 # ─── Authenticated — show sidebar and dashboard ───────────────────────────────
