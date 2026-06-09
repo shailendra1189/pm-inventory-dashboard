@@ -7,20 +7,20 @@ credentials:
     admin:
       email: admin@company.com
       name: Admin User
-      password: $2b$12$4EbvbSgus8KAFTNlRYB37OQlOVR5pl4bAGmBtTM9h4k4di3hMXVbW
+      password: $2b$12$mBWAxNxFLRke4i4YVw.4Q.HgRxZ1YB5hoVCioQ8i1elppBN.EnLTm
       role: admin
     jitesh_patil:
       email: jitesh.patil@mosaicwellness.in
       name: Jitesh
-      password: $2b$12$DPPMgF52zqBasDwEf8leYOEeQRVRv.IFpsgaiMgew/MjkR0mVJhIO
+      password: $2b$12$mBWAxNxFLRke4i4YVw.4Q.HgRxZ1YB5hoVCioQ8i1elppBN.EnLTm
       role: manager
     manager:
       email: manager@company.com
       name: Inventory Manager
-      password: $2b$12$4EbvbSgus8KAFTNlRYB37OQlOVR5pl4bAGmBtTM9h4k4di3hMXVbW
+      password: $2b$12$mBWAxNxFLRke4i4YVw.4Q.HgRxZ1YB5hoVCioQ8i1elppBN.EnLTm
       role: manager
     viewer:
       email: viewer@company.com
       name: Dashboard Viewer
-      password: $2b$12$4EbvbSgus8KAFTNlRYB37OQlOVR5pl4bAGmBtTM9h4k4di3hMXVbW
+      password: $2b$12$mBWAxNxFLRke4i4YVw.4Q.HgRxZ1YB5hoVCioQ8i1elppBN.EnLTm
       role: viewer
