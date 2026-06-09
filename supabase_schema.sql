@@ -1,0 +1,15 @@
+CREATE TABLE IF NOT EXISTS consumption_log (id SERIAL PRIMARY KEY, order_id TEXT NOT NULL, facility TEXT, city TEXT, ean_code TEXT, sku_code TEXT, sku_name TEXT, box_type TEXT, invoice_date TIMESTAMP, imported_at TIMESTAMP DEFAULT NOW(), UNIQUE(order_id, facility, ean_code));
+CREATE TABLE IF NOT EXISTS transfer_log (id SERIAL PRIMARY KEY, gatepass_code TEXT NOT NULL, from_facility TEXT, to_party TEXT, to_city TEXT, sku_code TEXT, sku_name TEXT, quantity INTEGER, dispatch_date TIMESTAMP, expected_inward_date DATE, transfer_type TEXT, status TEXT, imported_at TIMESTAMP DEFAULT NOW(), UNIQUE(gatepass_code, sku_code));
+CREATE TABLE IF NOT EXISTS city_opening_stock (id SERIAL PRIMARY KEY, city TEXT NOT NULL, sku_code TEXT NOT NULL, sku_name TEXT, quantity INTEGER DEFAULT 0, as_of_date DATE, updated_at TIMESTAMP DEFAULT NOW(), UNIQUE(city, sku_code));
+CREATE TABLE IF NOT EXISTS mother_hub_inventory (id SERIAL PRIMARY KEY, facility TEXT NOT NULL DEFAULT 'SL PM', sku_code TEXT NOT NULL, sku_name TEXT, ean TEXT, brand TEXT, inventory INTEGER DEFAULT 0, open_purchase INTEGER DEFAULT 0, snapshot_date TIMESTAMP, updated_at TIMESTAMP DEFAULT NOW(), UNIQUE(facility, sku_code));
+CREATE TABLE IF NOT EXISTS tat_config (id SERIAL PRIMARY KEY, city TEXT NOT NULL UNIQUE, tat_days INTEGER DEFAULT 5, updated_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS email_config (id SERIAL PRIMARY KEY, gmail_address TEXT, gmail_app_password TEXT, last_fetched_sale_orders TIMESTAMP, last_fetched_gatepass TIMESTAMP, last_fetched_mh_inventory TIMESTAMP, updated_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS import_log (id SERIAL PRIMARY KEY, import_type TEXT, source TEXT, filename TEXT, records_processed INTEGER DEFAULT 0, records_inserted INTEGER DEFAULT 0, records_skipped INTEGER DEFAULT 0, status TEXT, message TEXT, imported_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS facility_mapping (id SERIAL PRIMARY KEY, facility TEXT NOT NULL UNIQUE, city TEXT NOT NULL, updated_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS alert_config (id SERIAL PRIMARY KEY, stakeholder_emails TEXT DEFAULT '', mh_alert_doi INTEGER DEFAULT 15, city_alert_doi INTEGER DEFAULT 7, alert_enabled INTEGER DEFAULT 1, last_alert_sent TIMESTAMP, updated_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS bag_box_mapping (id SERIAL PRIMARY KEY, box_sku_code TEXT NOT NULL, box_sku_name TEXT, bag_sku_code TEXT NOT NULL, bag_sku_name TEXT, bags_per_box REAL NOT NULL DEFAULT 1.0, notes TEXT, updated_at TIMESTAMP DEFAULT NOW(), UNIQUE(box_sku_code, bag_sku_code));
+CREATE INDEX IF NOT EXISTS idx_consumption_invoice_date ON consumption_log(invoice_date);
+CREATE INDEX IF NOT EXISTS idx_consumption_city ON consumption_log(city);
+CREATE INDEX IF NOT EXISTS idx_consumption_sku ON consumption_log(sku_code);
+CREATE INDEX IF NOT EXISTS idx_transfer_status ON transfer_log(status);
+CREATE INDEX IF NOT EXISTS idx_transfer_city ON transfer_log(to_city);

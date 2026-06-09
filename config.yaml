@@ -1,0 +1,26 @@
+cookie:
+  expiry_days: 7
+  key: 7eb2435ab5352ef6e1cd343d6e302bea55f1fd13948979ded97eedecec62c544
+  name: pm_inventory_auth
+credentials:
+  usernames:
+    admin:
+      email: admin@company.com
+      name: Admin User
+      password: $2b$12$4EbvbSgus8KAFTNlRYB37OQlOVR5pl4bAGmBtTM9h4k4di3hMXVbW
+      role: admin
+    jitesh_patil:
+      email: jitesh.patil@mosaicwellness.in
+      name: Jitesh
+      password: $2b$12$DPPMgF52zqBasDwEf8leYOEeQRVRv.IFpsgaiMgew/MjkR0mVJhIO
+      role: manager
+    manager:
+      email: manager@company.com
+      name: Inventory Manager
+      password: $2b$12$4EbvbSgus8KAFTNlRYB37OQlOVR5pl4bAGmBtTM9h4k4di3hMXVbW
+      role: manager
+    viewer:
+      email: viewer@company.com
+      name: Dashboard Viewer
+      password: $2b$12$4EbvbSgus8KAFTNlRYB37OQlOVR5pl4bAGmBtTM9h4k4di3hMXVbW
+      role: viewer

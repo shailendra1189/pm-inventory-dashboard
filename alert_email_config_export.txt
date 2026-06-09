@@ -1,0 +1,8 @@
+ALERT & EMAIL CONFIG EXPORT
+(Passwords NOT included — re-enter in Admin > Email & Alerts after setup)
+
+Gmail address:           asifs6451@gmail.com
+Alert stakeholder emails: asif.shaikh@mosaicwellness.in,jitesh.patil@mosaicwellness.in
+MH alert DOI threshold:  15 days
+City alert DOI threshold:7 days
+Alerts enabled:          True

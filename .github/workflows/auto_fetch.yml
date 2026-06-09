@@ -1,0 +1,29 @@
+name: Daily Auto Fetch
+
+on:
+  schedule:
+    - cron: '30 3 * * *'   # 9:00 AM IST = 03:30 UTC
+  workflow_dispatch:         # allow manual trigger from GitHub Actions tab
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run auto_fetch
+        env:
+          DATABASE_URL:        ${{ secrets.DATABASE_URL }}
+          GMAIL_ADDRESS:       ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD:  ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python auto_fetch.py

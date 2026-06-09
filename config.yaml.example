@@ -1,0 +1,23 @@
+credentials:
+  usernames:
+    admin:
+      email: admin@yourcompany.com
+      name: Admin User
+      # Generate hash: python -c "import bcrypt; print(bcrypt.hashpw('yourpassword'.encode(), bcrypt.gensalt()).decode())"
+      password: "$2b$12$REPLACE_WITH_BCRYPT_HASH"
+      role: admin
+    manager:
+      email: manager@yourcompany.com
+      name: Inventory Manager
+      password: "$2b$12$REPLACE_WITH_BCRYPT_HASH"
+      role: manager
+    viewer:
+      email: viewer@yourcompany.com
+      name: Dashboard Viewer
+      password: "$2b$12$REPLACE_WITH_BCRYPT_HASH"
+      role: viewer
+
+cookie:
+  expiry_days: 7
+  key: "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY"
+  name: "pm_inventory_auth"

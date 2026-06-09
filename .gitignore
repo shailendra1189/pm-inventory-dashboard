@@ -1,0 +1,25 @@
+# Database — never commit (data lives in Supabase on cloud)
+data/pm_inventory.db
+data/*.csv
+data/*.log
+data/task_setup.log
+
+# Streamlit secrets — contains passwords and API keys
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# Temp / helper scripts
+check_email.py
+register_tasks.ps1
+migrate_to_supabase.py
+
+# Windows
+Thumbs.db
+Desktop.ini
