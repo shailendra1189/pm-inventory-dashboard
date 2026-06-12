@@ -135,16 +135,21 @@ class _PGConn:
 
 def get_connection():
     if _use_pg():
-        raw = psycopg2.connect(_db_url(), sslmode="require")
-        raw.autocommit = False
-        return _PGConn(raw)
-    else:
-        os.makedirs(DATA_DIR, exist_ok=True)
-        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        return conn
+        try:
+            raw = psycopg2.connect(_db_url(), sslmode="require", connect_timeout=10)
+            raw.autocommit = False
+            return _PGConn(raw)
+        except Exception as pg_err:
+            # Surface the real error so it appears in Streamlit Cloud logs
+            import streamlit as st
+            st.error(f"❌ Supabase connection failed: {pg_err}")
+            raise
+    os.makedirs(DATA_DIR, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
 
 
 @contextmanager
