@@ -135,7 +135,7 @@ class _PGConn:
 
 def get_connection():
     if _use_pg():
-        raw = psycopg2.connect(_db_url())
+        raw = psycopg2.connect(_db_url(), sslmode="require")
         raw.autocommit = False
         return _PGConn(raw)
     else:
