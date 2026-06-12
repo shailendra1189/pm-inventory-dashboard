@@ -293,6 +293,20 @@ def require_auth():
     st.stop()
 
 
+def _db_status_badge():
+    """Show a small DB connection indicator in the sidebar."""
+    try:
+        from src.database import _use_pg, _db_url
+        if _use_pg():
+            st.sidebar.success("🟢 Supabase connected", icon=None)
+        elif _db_url():
+            st.sidebar.error("🔴 Supabase URL set but psycopg2 unavailable")
+        else:
+            st.sidebar.warning("🟡 Using local SQLite (no DATABASE_URL)")
+    except Exception as e:
+        st.sidebar.error(f"DB check failed: {e}")
+
+
 def sidebar_nav(authenticator):
     with st.sidebar:
         name  = st.session_state.get("name", "User")
@@ -316,6 +330,8 @@ def sidebar_nav(authenticator):
                     for key in ["authentication_status", "name", "username"]:
                         st.session_state.pop(key, None)
                     st.rerun()
+        st.divider()
+        _db_status_badge()
         st.divider()
         st.page_link("streamlit_app.py",                 label="Overview",             icon="🏠")
         st.page_link("pages/1_Mother_Hub.py",           label="Mother Hub",           icon="🏭")
