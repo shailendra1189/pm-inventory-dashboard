@@ -296,13 +296,15 @@ def require_auth():
 def _db_status_badge():
     """Show a small DB connection indicator in the sidebar."""
     try:
-        from src.database import _use_pg, _db_url
-        if _use_pg():
-            st.sidebar.success("🟢 Supabase connected", icon=None)
+        from src.database import _use_rest, _use_pg, _db_url
+        if _use_rest():
+            st.sidebar.success("🟢 Supabase REST connected")
+        elif _use_pg():
+            st.sidebar.success("🟢 Supabase PG connected")
         elif _db_url():
-            st.sidebar.error("🔴 Supabase URL set but psycopg2 unavailable")
+            st.sidebar.error("🔴 DB URL set but connection failed")
         else:
-            st.sidebar.warning("🟡 Using local SQLite (no DATABASE_URL)")
+            st.sidebar.warning("🟡 Using local SQLite")
     except Exception as e:
         st.sidebar.error(f"DB check failed: {e}")
 

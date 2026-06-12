@@ -76,6 +76,160 @@ def _pg_adapt(sql: str) -> str:
 
 # ─── PostgreSQL connection wrapper ────────────────────────────────────────────
 
+# ─── Supabase REST API connection (HTTPS port 443 — works everywhere) ─────────
+
+def _supabase_creds():
+    try:
+        import streamlit as st
+        url = st.secrets.get("SUPABASE_URL", "")
+        key = st.secrets.get("SUPABASE_KEY", "")
+    except Exception:
+        url = os.environ.get("SUPABASE_URL", "")
+        key = os.environ.get("SUPABASE_KEY", "")
+    return url.strip(), key.strip()
+
+
+def _use_rest() -> bool:
+    url, key = _supabase_creds()
+    return bool(url) and bool(key)
+
+
+class _DictRow:
+    """Row object supporting both row["col"] and row[0] access."""
+    def __init__(self, d: dict):
+        self._d = d
+        self._keys = list(d.keys())
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._d[self._keys[key]]
+        return self._d[key]
+
+    def __iter__(self):
+        return iter(self._d.values())
+
+    def get(self, key, default=None):
+        return self._d.get(key, default)
+
+    def keys(self):
+        return self._d.keys()
+
+    def __repr__(self):
+        return repr(self._d)
+
+
+class _RESTConn:
+    """
+    Execute SQL via Supabase pm_query / pm_exec RPC functions over HTTPS.
+    Identical interface to _PGConn / sqlite3.Connection.
+    """
+
+    def __init__(self):
+        url, key = _supabase_creds()
+        self._base = url.rstrip('/')
+        self._hdrs = {
+            "apikey":        key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type":  "application/json",
+        }
+        self._rows: list = []
+        self._rowcount: int = 0
+        self.total_changes: int = 0
+
+    # ── parameter substitution ────────────────────────────────────────────────
+
+    @staticmethod
+    def _esc(val):
+        if val is None:
+            return 'NULL'
+        if isinstance(val, bool):
+            return 'TRUE' if val else 'FALSE'
+        if isinstance(val, (int, float)):
+            return str(val)
+        return "'" + str(val).replace("'", "''") + "'"
+
+    @classmethod
+    def _sub(cls, sql: str, params) -> str:
+        if not params:
+            return sql
+        if isinstance(params, dict):
+            return re.sub(r'%\((\w+)\)s',
+                          lambda m: cls._esc(params[m.group(1)]), sql)
+        params = list(params)
+        idx = [0]
+        def _r(m):
+            v = cls._esc(params[idx[0]]); idx[0] += 1; return v
+        return re.sub(r'%s', _r, sql)
+
+    # ── HTTP helpers ──────────────────────────────────────────────────────────
+
+    def _rpc(self, fn: str, payload: dict) -> object:
+        import requests as _req
+        resp = _req.post(
+            f"{self._base}/rest/v1/rpc/{fn}",
+            headers=self._hdrs,
+            json=payload,
+            timeout=30,
+        )
+        if resp.status_code not in (200, 201):
+            raise Exception(
+                f"Supabase RPC {fn} failed {resp.status_code}: {resp.text[:300]}"
+            )
+        return resp.json()
+
+    # ── public interface ──────────────────────────────────────────────────────
+
+    def execute(self, sql: str, params=None):
+        sql = _pg_adapt(sql)
+        sql = self._sub(sql, params)
+
+        stripped = sql.strip().upper()
+        is_select = stripped.startswith('SELECT') or stripped.startswith('WITH')
+
+        if is_select:
+            data = self._rpc('pm_query', {'sql_text': sql})
+            self._rows = data if isinstance(data, list) else []
+            self._rowcount = len(self._rows)
+        else:
+            self._rpc('pm_exec', {'sql_text': sql})
+            self._rows = []
+            self._rowcount = 1
+            self.total_changes += 1
+        return self
+
+    def executemany(self, sql: str, seq):
+        for params in seq:
+            self.execute(sql, params)
+
+    def executescript(self, script: str):
+        for stmt in script.split(';'):
+            stmt = stmt.strip()
+            if stmt:
+                try:
+                    self.execute(stmt)
+                except Exception:
+                    pass
+
+    def fetchone(self):
+        return _DictRow(self._rows[0]) if self._rows else None
+
+    def fetchall(self):
+        return [_DictRow(r) for r in self._rows]
+
+    @property
+    def rowcount(self):
+        return self._rowcount
+
+    def commit(self):
+        self.total_changes = 0
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        pass
+
+
 class _PGConn:
     """Wraps psycopg2 to look like sqlite3 to the rest of the codebase.
 
@@ -134,16 +288,23 @@ class _PGConn:
 # ─── Connection context manager ───────────────────────────────────────────────
 
 def get_connection():
+    # Priority 1: Supabase REST API (HTTPS 443 — works from Streamlit Cloud)
+    if _use_rest():
+        return _RESTConn()
+    # Priority 2: Direct psycopg2 (works from GitHub Actions / local Linux)
     if _use_pg():
         try:
             raw = psycopg2.connect(_db_url(), sslmode="require", connect_timeout=10)
             raw.autocommit = False
             return _PGConn(raw)
         except Exception as pg_err:
-            # Surface the real error so it appears in Streamlit Cloud logs
-            import streamlit as st
-            st.error(f"❌ Supabase connection failed: {pg_err}")
+            try:
+                import streamlit as st
+                st.error(f"❌ Supabase connection failed: {pg_err}")
+            except Exception:
+                print(f"Supabase connection failed: {pg_err}")
             raise
+    # Priority 3: Local SQLite
     os.makedirs(DATA_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
