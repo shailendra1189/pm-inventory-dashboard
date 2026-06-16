@@ -336,7 +336,7 @@ def get_mother_hub_doi():
     Used for alert logic and procurement forecast.
     """
     with db.db_connection() as conn:
-        inv_rows = conn.execute("""
+        inv_rows = conn.execute(f"""
             SELECT sku_code,
                    MAX(sku_name) as sku_name,
                    SUM(inventory) as inventory
