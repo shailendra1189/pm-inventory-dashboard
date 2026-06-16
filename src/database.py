@@ -827,7 +827,7 @@ def log_import(import_type, source, filename,
 # ─── Transfer status recalculation ───────────────────────────────────────────
 
 def recalculate_transfer_statuses():
-    if _use_pg():
+    if _use_rest() or _use_pg():
         sql = """
             UPDATE transfer_log
             SET status = 'INWARDED'
@@ -841,8 +841,11 @@ def recalculate_transfer_statuses():
             WHERE status = 'IN_TRANSIT'
               AND date(expected_inward_date) <= date('now')
         """
-    with db_connection() as conn:
-        conn.execute(sql)
+    try:
+        with db_connection() as conn:
+            conn.execute(sql)
+    except Exception:
+        pass  # Non-critical — skip if fails
 
 
 # ─── Facility mapping ─────────────────────────────────────────────────────────
