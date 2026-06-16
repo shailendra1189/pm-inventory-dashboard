@@ -131,7 +131,7 @@ with db.db_connection() as conn:
         "WHERE date(invoice_date) >= date('now','-7 days') AND city NOT IN ('Unknown','')"
     ).fetchone()[0]
     total_mh_stock = conn.execute(
-        "SELECT COALESCE(SUM(inventory),0) FROM mother_hub_inventory"
+        "SELECT COALESCE(SUM(inventory),0) FROM mother_hub_inventory WHERE LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%'"
     ).fetchone()[0]
 
 col1.metric("Boxes Consumed (7 days)", f"{total_consumption_7d:,}")

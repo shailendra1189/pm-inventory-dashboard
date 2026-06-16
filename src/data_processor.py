@@ -9,10 +9,13 @@ from src.config import (
     DOI_BUFFER,
 )
 
-# SQL fragment reused in every consumption_log query to exclude placeholder SKUs
-_EXCL = "sku_code NOT IN ({})".format(
+# SQL fragment reused in every consumption_log query to exclude placeholder SKUs and bags
+_EXCL = "sku_code NOT IN ({}) AND LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%'".format(
     ",".join(f"'{s}'" for s in PLACEHOLDER_SKUS)
 )
+
+# SQL fragment to exclude bags from inventory tables
+_EXCL_INV = "LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%'"
 from src import database as db
 
 
@@ -338,6 +341,7 @@ def get_mother_hub_doi():
                    MAX(sku_name) as sku_name,
                    SUM(inventory) as inventory
             FROM mother_hub_inventory
+            WHERE {_EXCL_INV}
             GROUP BY sku_code
         """).fetchall()
 
@@ -393,9 +397,10 @@ def get_mother_hub_inventory_detail():
     DOI is based on TOTAL MH stock (SL PM + OWN PM) / daily rate — same number shown on every row.
     """
     with db.db_connection() as conn:
-        inv_rows = conn.execute("""
+        inv_rows = conn.execute(f"""
             SELECT facility, sku_code, sku_name, ean, brand, inventory, snapshot_date
             FROM mother_hub_inventory
+            WHERE {_EXCL_INV}
             ORDER BY facility, sku_name
         """).fetchall()
 
@@ -680,7 +685,7 @@ def get_procurement_forecast(target_doi=None):
     # MH inventory
     with db.db_connection() as conn:
         inv_rows = conn.execute(
-            "SELECT sku_code, sku_name, inventory FROM mother_hub_inventory"
+            f"SELECT sku_code, sku_name, inventory FROM mother_hub_inventory WHERE {_EXCL_INV}"
         ).fetchall()
 
     inv_df = pd.DataFrame([dict(r) for r in inv_rows]) if inv_rows else pd.DataFrame()
