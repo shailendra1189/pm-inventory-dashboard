@@ -171,11 +171,11 @@ class _RESTConn:
             json=payload,
             timeout=30,
         )
-        if resp.status_code not in (200, 201):
+        if resp.status_code not in (200, 201, 204):
             raise Exception(
                 f"Supabase RPC {fn} failed {resp.status_code}: {resp.text[:300]}"
             )
-        return resp.json()
+        return resp.json() if resp.content else None
 
     # ── public interface ──────────────────────────────────────────────────────
 
