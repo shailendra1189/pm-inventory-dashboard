@@ -278,7 +278,7 @@ def get_last_7_days_consumption(city=None, sku_code=None):
     return pd.DataFrame([dict(r) for r in rows])
 
 
-def get_actual_data_days(cutoff=None, window=7):
+def get_actual_data_days(cutoff=None, window=30):
     """Return the denominator for daily-rate calculations.
 
     Counts distinct invoice dates in the DB since `cutoff`, capped at `window`.
@@ -300,11 +300,10 @@ def get_actual_data_days(cutoff=None, window=7):
 
 
 def get_consumption_summary(city=None):
-    """Consumption totals by city + sku for the last 7 calendar days.
-    Daily rate uses the actual number of days with data as denominator
-    (e.g. 6 when data covers Jun 1-6, not always 7)."""
-    cutoff = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
-    actual_days = get_actual_data_days(cutoff)
+    """Consumption totals by city + sku for the last 30 calendar days.
+    Daily rate uses the actual number of days with data as denominator."""
+    cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    actual_days = get_actual_data_days(cutoff, window=30)
     with db.db_connection() as conn:
         q = f"""
             SELECT city, sku_code, sku_name, box_type,
@@ -501,9 +500,9 @@ def get_city_inventory_summary(city):
         _bag_c_rows["box_type"] = ""
         consumed = pd.concat([consumed, _bag_c_rows], ignore_index=True)
 
-    # 7-day window: used for daily_rate and DOI
-    _cutoff_7d = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
-    _actual_n  = get_actual_data_days(cutoff=_cutoff_7d, window=7)
+    # 30-day window: used for daily_rate and DOI
+    _cutoff_7d = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    _actual_n  = get_actual_data_days(cutoff=_cutoff_7d, window=30)
     _bag_7d    = get_derived_bag_consumption(city=city, from_date=_cutoff_7d)
     if not _bag_7d.empty:
         _bag_7d_rows = pd.DataFrame({
