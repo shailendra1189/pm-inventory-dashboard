@@ -196,8 +196,11 @@ with col_tbl:
             return ["background-color:#fefce8"] * len(row)   # yellow
         return [""] * len(row)
 
-    st.dataframe(display.style.apply(colour_row, axis=1),
-                 use_container_width=True, hide_index=True, height=460)
+    st.dataframe(
+        display.style.apply(colour_row, axis=1),
+        use_container_width=True, hide_index=True, height=460,
+        column_config={"Breach %": st.column_config.NumberColumn(format="%.2f")},
+    )
 
     # Download
     csv_bytes = display.to_csv(index=False).encode("utf-8")

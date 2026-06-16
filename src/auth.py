@@ -341,4 +341,5 @@ def sidebar_nav(authenticator):
         st.page_link("pages/3_In_Transit.py",           label="In Transit",           icon="🚛")
         st.page_link("pages/5_Demand_Planning.py",       label="Demand Planning",      icon="📊")
         st.page_link("pages/6_SOP_Compliance.py",       label="SOP Compliance",       icon="⚠️")
+        st.page_link("pages/7_Monthly_Consumption.py",  label="Monthly Consumption",  icon="📅")
         st.page_link("pages/4_Admin.py",                label="Admin & Settings",     icon="⚙️")
