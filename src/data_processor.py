@@ -268,8 +268,8 @@ def process_mother_hub_inventory(df):
 # ─── Query Functions ───────────────────────────────────────────────────────────
 
 def get_last_7_days_consumption(city=None, sku_code=None):
-    """Return daily consumption counts for last 7 calendar days."""
-    cutoff = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    """Return daily consumption counts for last 30 calendar days."""
+    cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
     with db.db_connection() as conn:
         q = f"""
             SELECT city, sku_code, sku_name, box_type,

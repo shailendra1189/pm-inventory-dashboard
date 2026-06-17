@@ -113,30 +113,62 @@ def auto_load_initial_data():
 auto_load_initial_data()
 db.recalculate_transfer_statuses()
 
+# ─── Cached data loaders (TTL = 30 min) ───────────────────────────────────────
+@st.cache_data(ttl=1800, show_spinner=False)
+def _load_kpis():
+    _de = ",".join(f"'{c}'" for c in ("Unknown", "") + DARK_STORE_CITIES)
+    with db.db_connection() as conn:
+        cons = conn.execute(
+            f"SELECT COUNT(*) FROM consumption_log "
+            f"WHERE date(invoice_date) >= date('now','-30 days') AND COALESCE(city,'') NOT IN ({_de})"
+        ).fetchone()[0]
+        transit = conn.execute(
+            "SELECT COALESCE(SUM(quantity),0) FROM transfer_log WHERE status='IN_TRANSIT'"
+        ).fetchone()[0]
+        cities = conn.execute(
+            f"SELECT COUNT(DISTINCT city) FROM consumption_log "
+            f"WHERE date(invoice_date) >= date('now','-30 days') AND COALESCE(city,'') NOT IN ({_de})"
+        ).fetchone()[0]
+        stock = conn.execute(
+            "SELECT COALESCE(SUM(inventory),0) FROM mother_hub_inventory "
+            "WHERE LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%' AND LOWER(COALESCE(sku_name,'')) NOT LIKE '%uae%'"
+        ).fetchone()[0]
+    return cons, transit, cities, stock
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _load_doi_alerts():
+    return dp.get_doi_alert_summary()
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _load_trend():
+    return dp.get_last_7_days_consumption()
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _load_city_doi():
+    rows = []
+    for city in dp.get_all_cities():
+        cdf = dp.get_city_inventory_summary(city)
+        for _, r in cdf.iterrows():
+            if r.get("doi") is not None:
+                rows.append({
+                    "City": city,
+                    "SKU": r.get("sku_name") or r.get("sku_code", ""),
+                    "Stock": max(int(r["current_stock"]), 0),
+                    "DOI": round(r["doi"], 1),
+                })
+    return rows
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _load_transit():
+    return dp.get_in_transit_summary()
+
 # ─── Overview Dashboard ────────────────────────────────────────────────────────
 st.title("📦 PM Inventory Overview")
 st.caption(f"Today: {pd.Timestamp.now().strftime('%d %b %Y, %H:%M')}")
 
 # KPI row
 col1, col2, col3, col4 = st.columns(4)
-_dark_excl = ",".join(f"'{c}'" for c in ("Unknown", "") + DARK_STORE_CITIES)
-with db.db_connection() as conn:
-    # Use 30-day window so KPI stays populated even when daily fetch is delayed
-    total_consumption_30d = conn.execute(
-        f"SELECT COUNT(*) FROM consumption_log "
-        f"WHERE date(invoice_date) >= date('now','-30 days') AND COALESCE(city,'') NOT IN ({_dark_excl})"
-    ).fetchone()[0]
-    total_in_transit = conn.execute(
-        "SELECT COALESCE(SUM(quantity),0) FROM transfer_log WHERE status='IN_TRANSIT'"
-    ).fetchone()[0]
-    active_cities = conn.execute(
-        f"SELECT COUNT(DISTINCT city) FROM consumption_log "
-        f"WHERE date(invoice_date) >= date('now','-30 days') AND COALESCE(city,'') NOT IN ({_dark_excl})"
-    ).fetchone()[0]
-    total_mh_stock = conn.execute(
-        "SELECT COALESCE(SUM(inventory),0) FROM mother_hub_inventory "
-        "WHERE LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%' AND LOWER(COALESCE(sku_name,'')) NOT LIKE '%uae%'"
-    ).fetchone()[0]
+total_consumption_30d, total_in_transit, active_cities, total_mh_stock = _load_kpis()
 
 col1.metric("Boxes Consumed (30 days)", f"{total_consumption_30d:,}")
 col2.metric("Units In Transit", f"{total_in_transit:,}")
@@ -148,7 +180,7 @@ st.divider()
 # DOI Alerts
 st.subheader("⚠️ DOI Alerts — Critical & Low Stock")
 with st.spinner("Calculating DOI..."):
-    alerts = dp.get_doi_alert_summary()
+    alerts = _load_doi_alerts()
 
 if alerts.empty:
     st.success("All SKUs have healthy DOI levels (> 14 days).")
@@ -185,9 +217,9 @@ else:
 
 st.divider()
 
-# 7-day consumption trend
-st.subheader("📊 Overall Consumption — Last 7 Days")
-trend_df = dp.get_last_7_days_consumption()
+# 30-day consumption trend
+st.subheader("📊 Overall Consumption — Last 30 Days")
+trend_df = _load_trend()
 if not trend_df.empty:
     daily = trend_df.groupby("day")["boxes_consumed"].sum().reset_index()
     daily.columns = ["Date", "Boxes Consumed"]
@@ -196,52 +228,38 @@ if not trend_df.empty:
     fig.update_layout(height=320, showlegend=False)
     st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("No consumption data for last 7 days.")
+    st.info("No consumption data for last 30 days.")
 
 st.divider()
 
 # City DOI bubble chart
 st.subheader("🗺️ City DOI Overview")
-cities = dp.get_all_cities()
-if cities:
-    city_doi_rows = []
-    for city in cities:
-        cdf = dp.get_city_inventory_summary(city)
-        for _, r in cdf.iterrows():
-            if r.get("doi") is not None:
-                city_doi_rows.append({
-                    "City": city,
-                    "SKU": r.get("sku_name") or r.get("sku_code", ""),
-                    "Stock": max(int(r["current_stock"]), 0),
-                    "DOI": round(r["doi"], 1),
-                })
-    if city_doi_rows:
-        cdf2 = pd.DataFrame(city_doi_rows)
-        cdf2["Health"] = cdf2["DOI"].apply(
-            lambda x: "Critical" if x <= CRITICAL_DOI else ("Low" if x <= LOW_DOI else "Healthy")
-        )
-        fig2 = px.scatter(
-            cdf2, x="City", y="DOI", size="Stock", color="Health",
-            color_discrete_map={"Critical": "#ef4444", "Low": "#f59e0b", "Healthy": "#22c55e"},
-            hover_data=["SKU", "Stock"],
-            title="DOI by City — bubble size = stock level",
-        )
-        fig2.add_hline(y=CRITICAL_DOI, line_dash="dash", line_color="red",
-                       annotation_text=f"Critical ({CRITICAL_DOI}d)")
-        fig2.add_hline(y=LOW_DOI, line_dash="dot", line_color="orange",
-                       annotation_text=f"Low ({LOW_DOI}d)")
-        fig2.update_layout(height=420)
-        st.plotly_chart(fig2, use_container_width=True)
-    else:
-        st.info("Add city opening stock in Admin → Opening Stock to see city DOI.")
+city_doi_rows = _load_city_doi()
+if city_doi_rows:
+    cdf2 = pd.DataFrame(city_doi_rows)
+    cdf2["Health"] = cdf2["DOI"].apply(
+        lambda x: "Critical" if x <= CRITICAL_DOI else ("Low" if x <= LOW_DOI else "Healthy")
+    )
+    fig2 = px.scatter(
+        cdf2, x="City", y="DOI", size="Stock", color="Health",
+        color_discrete_map={"Critical": "#ef4444", "Low": "#f59e0b", "Healthy": "#22c55e"},
+        hover_data=["SKU", "Stock"],
+        title="DOI by City — bubble size = stock level",
+    )
+    fig2.add_hline(y=CRITICAL_DOI, line_dash="dash", line_color="red",
+                   annotation_text=f"Critical ({CRITICAL_DOI}d)")
+    fig2.add_hline(y=LOW_DOI, line_dash="dot", line_color="orange",
+                   annotation_text=f"Low ({LOW_DOI}d)")
+    fig2.update_layout(height=420)
+    st.plotly_chart(fig2, use_container_width=True)
 else:
-    st.info("Upload sale orders in Admin → Data Management to see city data.")
+    st.info("Add city opening stock in Admin → Opening Stock to see city DOI.")
 
 st.divider()
 
 # In-transit summary
 st.subheader("🚛 Stock In Transit")
-transit_df = dp.get_in_transit_summary()
+transit_df = _load_transit()
 if not transit_df.empty:
     summary = transit_df.groupby("to_city").agg(
         SKUs=("sku_code", "nunique"),
