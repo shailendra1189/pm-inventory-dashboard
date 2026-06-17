@@ -13,10 +13,53 @@ from src.auth import get_authenticator, sidebar_nav, handle_google_callback, get
 
 st.set_page_config(
     page_title="PM Inventory Dashboard",
-    page_icon="📦",
+    page_icon="🏭",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+st.markdown("""
+<style>
+/* ── Global font & background ── */
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+
+/* ── Metric cards ── */
+[data-testid="metric-container"] {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 18px 22px !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+[data-testid="metric-container"]:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+[data-testid="stMetricLabel"] { font-size: 0.78rem !important; color: #64748b !important; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+[data-testid="stMetricValue"] { font-size: 2rem !important; font-weight: 700 !important; color: #1e293b !important; }
+
+/* ── Sidebar ── */
+[data-testid="stSidebar"] { background: #1e293b !important; }
+[data-testid="stSidebar"] * { color: #cbd5e1 !important; }
+[data-testid="stSidebar"] a:hover { color: #fff !important; }
+[data-testid="stSidebar"] hr { border-color: #334155 !important; }
+[data-testid="stSidebarNavLink"][aria-current="page"] {
+    background: #334155 !important;
+    border-radius: 8px;
+    color: #fff !important;
+}
+
+/* ── Section headers ── */
+h2, h3 { color: #1e293b !important; font-weight: 700 !important; }
+
+/* ── Dataframe ── */
+[data-testid="stDataFrame"] { border-radius: 10px; overflow: hidden; }
+
+/* ── Divider ── */
+hr { border-color: #e2e8f0 !important; margin: 1.2rem 0 !important; }
+</style>
+""", unsafe_allow_html=True)
 
 db.init_db()
 
@@ -163,8 +206,28 @@ def _load_transit():
     return dp.get_in_transit_summary()
 
 # ─── Overview Dashboard ────────────────────────────────────────────────────────
-st.title("📦 PM Inventory Overview")
-st.caption(f"Today: {pd.Timestamp.now().strftime('%d %b %Y, %H:%M')}")
+st.markdown(f"""
+<div style="
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border-radius: 16px;
+    padding: 28px 36px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+">
+    <div style="font-size: 3rem; line-height:1;">🏭</div>
+    <div>
+        <div style="font-size: 1.9rem; font-weight: 800; color: #fff; letter-spacing: -0.5px;">
+            PM Inventory Dashboard
+        </div>
+        <div style="font-size: 0.88rem; color: #94a3b8; margin-top: 4px;">
+            Mosaic Wellness · Packing Material · Real-time Stock & DOI
+            &nbsp;|&nbsp; 🕐 {pd.Timestamp.now().strftime('%d %b %Y, %H:%M')}
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # KPI row
 col1, col2, col3, col4 = st.columns(4)

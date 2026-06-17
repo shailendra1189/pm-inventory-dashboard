@@ -311,35 +311,59 @@ def _db_status_badge():
 
 def sidebar_nav(authenticator):
     with st.sidebar:
-        name  = st.session_state.get("name", "User")
-        email = st.session_state.get("email", "")
+        # Brand header
+        st.markdown("""
+        <div style="padding: 8px 0 4px 0;">
+            <div style="font-size:1.25rem; font-weight:800; color:#fff; letter-spacing:-0.3px;">
+                🏭 PM Dashboard
+            </div>
+            <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">
+                Mosaic Wellness · Inventory
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.divider()
+
+        name   = st.session_state.get("name", "User")
+        email  = st.session_state.get("email", "")
+        role   = st.session_state.get("role", "")
         method = st.session_state.get("auth_method", "password")
 
+        role_badge = {"admin": "🔴 Admin", "manager": "🟡 Manager", "viewer": "🟢 Viewer"}.get(role, role)
+        st.markdown(f"""
+        <div style="background:#334155; border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+            <div style="color:#f1f5f9; font-weight:600; font-size:0.9rem;">👤 {name}</div>
+            <div style="color:#94a3b8; font-size:0.75rem; margin-top:2px;">{role_badge}</div>
+            {"<div style='color:#64748b;font-size:0.72rem;margin-top:1px;'>🔵 " + email + "</div>" if method == "google" else ""}
+        </div>
+        """, unsafe_allow_html=True)
+
         if method == "google":
-            st.markdown(f"**👤 {name}**")
-            st.caption(f"🔵 Google SSO · {email}")
-            if st.button("Logout", key="google_logout"):
+            if st.button("Logout", key="google_logout", use_container_width=True):
                 for key in ["authentication_status", "name", "username",
                             "email", "role", "auth_method"]:
                     st.session_state.pop(key, None)
                 st.rerun()
         else:
-            st.markdown(f"**👤 {name}**")
             try:
                 authenticator.logout("Logout", location="sidebar")
             except Exception:
-                if st.button("Logout"):
+                if st.button("Logout", use_container_width=True):
                     for key in ["authentication_status", "name", "username"]:
                         st.session_state.pop(key, None)
                     st.rerun()
+
         st.divider()
         _db_status_badge()
         st.divider()
-        st.page_link("streamlit_app.py",                 label="Overview",             icon="🏠")
-        st.page_link("pages/1_Mother_Hub.py",           label="Mother Hub",           icon="🏭")
-        st.page_link("pages/2_City_Dashboard.py",       label="City Dashboard",       icon="🏙️")
-        st.page_link("pages/3_In_Transit.py",           label="In Transit",           icon="🚛")
-        st.page_link("pages/5_Demand_Planning.py",       label="Demand Planning",      icon="📊")
-        st.page_link("pages/6_SOP_Compliance.py",       label="SOP Compliance",       icon="⚠️")
-        st.page_link("pages/7_Monthly_Consumption.py",  label="Monthly Consumption",  icon="📅")
-        st.page_link("pages/4_Admin.py",                label="Admin & Settings",     icon="⚙️")
+
+        st.markdown("<div style='font-size:0.7rem;color:#475569;font-weight:700;letter-spacing:0.08em;padding:0 4px 6px;'>NAVIGATION</div>", unsafe_allow_html=True)
+        st.page_link("streamlit_app.py",                label="Overview",            icon="🏠")
+        st.page_link("pages/1_Mother_Hub.py",           label="Mother Hub",          icon="🏭")
+        st.page_link("pages/2_City_Dashboard.py",       label="City Dashboard",      icon="🏙️")
+        st.page_link("pages/3_In_Transit.py",           label="In Transit",          icon="🚛")
+        st.page_link("pages/5_Demand_Planning.py",      label="Demand Planning",     icon="📊")
+        st.page_link("pages/6_SOP_Compliance.py",       label="SOP Compliance",      icon="⚠️")
+        st.page_link("pages/7_Monthly_Consumption.py",  label="Monthly Consumption", icon="📅")
+        st.divider()
+        st.page_link("pages/4_Admin.py",                label="Admin & Settings",    icon="⚙️")
