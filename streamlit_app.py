@@ -8,7 +8,7 @@ import plotly.express as px
 
 from src import database as db
 from src import data_processor as dp
-from src.config import CRITICAL_DOI, LOW_DOI, BASE_DIR
+from src.config import CRITICAL_DOI, LOW_DOI, BASE_DIR, DARK_STORE_CITIES
 from src.auth import get_authenticator, sidebar_nav, handle_google_callback, get_google_login_url
 
 st.set_page_config(
@@ -119,19 +119,22 @@ st.caption(f"Today: {pd.Timestamp.now().strftime('%d %b %Y, %H:%M')}")
 
 # KPI row
 col1, col2, col3, col4 = st.columns(4)
+_dark_excl = ",".join(f"'{c}'" for c in ("Unknown", "") + DARK_STORE_CITIES)
 with db.db_connection() as conn:
     total_consumption_7d = conn.execute(
-        "SELECT COUNT(*) FROM consumption_log WHERE date(invoice_date) >= date('now','-7 days')"
+        f"SELECT COUNT(*) FROM consumption_log "
+        f"WHERE date(invoice_date) >= date('now','-7 days') AND COALESCE(city,'') NOT IN ({_dark_excl})"
     ).fetchone()[0]
     total_in_transit = conn.execute(
         "SELECT COALESCE(SUM(quantity),0) FROM transfer_log WHERE status='IN_TRANSIT'"
     ).fetchone()[0]
     active_cities = conn.execute(
-        "SELECT COUNT(DISTINCT city) FROM consumption_log "
-        "WHERE date(invoice_date) >= date('now','-7 days') AND city NOT IN ('Unknown','')"
+        f"SELECT COUNT(DISTINCT city) FROM consumption_log "
+        f"WHERE date(invoice_date) >= date('now','-7 days') AND COALESCE(city,'') NOT IN ({_dark_excl})"
     ).fetchone()[0]
     total_mh_stock = conn.execute(
-        "SELECT COALESCE(SUM(inventory),0) FROM mother_hub_inventory WHERE LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%'"
+        "SELECT COALESCE(SUM(inventory),0) FROM mother_hub_inventory "
+        "WHERE LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%' AND LOWER(COALESCE(sku_name,'')) NOT LIKE '%uae%'"
     ).fetchone()[0]
 
 col1.metric("Boxes Consumed (7 days)", f"{total_consumption_7d:,}")
