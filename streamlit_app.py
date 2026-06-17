@@ -121,23 +121,24 @@ st.caption(f"Today: {pd.Timestamp.now().strftime('%d %b %Y, %H:%M')}")
 col1, col2, col3, col4 = st.columns(4)
 _dark_excl = ",".join(f"'{c}'" for c in ("Unknown", "") + DARK_STORE_CITIES)
 with db.db_connection() as conn:
-    total_consumption_7d = conn.execute(
+    # Use 30-day window so KPI stays populated even when daily fetch is delayed
+    total_consumption_30d = conn.execute(
         f"SELECT COUNT(*) FROM consumption_log "
-        f"WHERE date(invoice_date) >= date('now','-7 days') AND COALESCE(city,'') NOT IN ({_dark_excl})"
+        f"WHERE date(invoice_date) >= date('now','-30 days') AND COALESCE(city,'') NOT IN ({_dark_excl})"
     ).fetchone()[0]
     total_in_transit = conn.execute(
         "SELECT COALESCE(SUM(quantity),0) FROM transfer_log WHERE status='IN_TRANSIT'"
     ).fetchone()[0]
     active_cities = conn.execute(
         f"SELECT COUNT(DISTINCT city) FROM consumption_log "
-        f"WHERE date(invoice_date) >= date('now','-7 days') AND COALESCE(city,'') NOT IN ({_dark_excl})"
+        f"WHERE date(invoice_date) >= date('now','-30 days') AND COALESCE(city,'') NOT IN ({_dark_excl})"
     ).fetchone()[0]
     total_mh_stock = conn.execute(
         "SELECT COALESCE(SUM(inventory),0) FROM mother_hub_inventory "
         "WHERE LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%' AND LOWER(COALESCE(sku_name,'')) NOT LIKE '%uae%'"
     ).fetchone()[0]
 
-col1.metric("Boxes Consumed (7 days)", f"{total_consumption_7d:,}")
+col1.metric("Boxes Consumed (30 days)", f"{total_consumption_30d:,}")
 col2.metric("Units In Transit", f"{total_in_transit:,}")
 col3.metric("Active Cities", active_cities)
 col4.metric("MH Total Stock", f"{total_mh_stock:,}")
