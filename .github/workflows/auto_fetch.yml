@@ -24,6 +24,8 @@ jobs:
       - name: Run auto_fetch
         env:
           DATABASE_URL:        ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL:        ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:        ${{ secrets.SUPABASE_KEY }}
           GMAIL_ADDRESS:       ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD:  ${{ secrets.GMAIL_APP_PASSWORD }}
         run: python auto_fetch.py

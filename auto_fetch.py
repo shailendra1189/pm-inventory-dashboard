@@ -90,13 +90,14 @@ def run():
         return
 
     # ── 1. Fetch Gmail reports ─────────────────────────────────────────────────
+    # Env vars (GitHub Actions secrets) take priority over DB-stored config
     email_cfg = db.get_email_config()
-    gmail = email_cfg.get("gmail_address", "")
-    pwd = email_cfg.get("gmail_app_password", "")
+    gmail = os.environ.get("GMAIL_ADDRESS") or email_cfg.get("gmail_address", "")
+    pwd   = os.environ.get("GMAIL_APP_PASSWORD") or email_cfg.get("gmail_app_password", "")
 
     if not gmail or not pwd:
         log.warning("Gmail credentials not configured. Skipping email fetch.")
-        log.warning("Configure them in the dashboard: Admin > Email & Alerts")
+        log.warning("Set GMAIL_ADDRESS and GMAIL_APP_PASSWORD env vars or configure in Admin > Email & Alerts")
     else:
         log.info(f"Connecting to Gmail as {gmail} ...")
         try:
