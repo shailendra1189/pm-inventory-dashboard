@@ -11,17 +11,21 @@ from src.config import (
 
 _dark_city_list = ",".join(f"'{c}'" for c in DARK_STORE_CITIES)
 
-# SQL fragment reused in every consumption_log query to exclude placeholder SKUs, bags, and dark-store cities
+# SQL fragment reused in every consumption_log query to exclude placeholder SKUs, bags, UAE SKUs, and dark-store cities
 _EXCL = (
     "sku_code NOT IN ({skus}) AND LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%'"
+    " AND LOWER(COALESCE(sku_name,'')) NOT LIKE '%uae%'"
     " AND COALESCE(city,'') NOT IN ({cities})"
 ).format(
     skus=",".join(f"'{s}'" for s in PLACEHOLDER_SKUS),
     cities=_dark_city_list,
 )
 
-# SQL fragment to exclude bags from inventory tables
-_EXCL_INV = "LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%'"
+# SQL fragment to exclude bags and UAE SKUs from inventory tables
+_EXCL_INV = (
+    "LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%'"
+    " AND LOWER(COALESCE(sku_name,'')) NOT LIKE '%uae%'"
+)
 from src import database as db
 
 
