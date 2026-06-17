@@ -9,7 +9,7 @@ import streamlit as st
 
 from src.auth import require_auth, sidebar_nav
 from src import database as db
-from src.config import PLACEHOLDER_SKUS
+from src.config import PLACEHOLDER_SKUS, DARK_STORE_CITIES
 
 st.set_page_config(page_title="Monthly Consumption", page_icon="📅", layout="wide")
 authenticator, config = require_auth()
@@ -21,11 +21,12 @@ st.caption("SKU-level consumption by month — Boxes & Polybags")
 # ── Filters ───────────────────────────────────────────────────────────────────
 col1, col2, col3 = st.columns(3)
 
+_city_excl = ",".join(f"'{c}'" for c in ("Unknown", "", "None") + DARK_STORE_CITIES)
 with db.db_connection() as conn:
     city_rows = conn.execute(
-        "SELECT DISTINCT city FROM consumption_log "
-        "WHERE city IS NOT NULL AND city NOT IN ('Unknown','','None') "
-        "ORDER BY city"
+        f"SELECT DISTINCT city FROM consumption_log "
+        f"WHERE city IS NOT NULL AND city NOT IN ({_city_excl}) "
+        f"ORDER BY city"
     ).fetchall()
     cities = [r[0] for r in city_rows]
 
@@ -51,6 +52,7 @@ if not sel_months:
 
 # ── Query ─────────────────────────────────────────────────────────────────────
 excl = ",".join(f"'{s}'" for s in PLACEHOLDER_SKUS)
+dark_excl = ",".join(f"'{c}'" for c in DARK_STORE_CITIES)
 month_placeholders = ",".join(["%s"] * len(sel_months))
 
 # Map box_type to category
@@ -69,6 +71,7 @@ with db.db_connection() as conn:
         FROM consumption_log
         WHERE SUBSTR(CAST(invoice_date AS TEXT), 1, 7) IN ({month_placeholders})
           AND sku_code NOT IN ({excl})
+          AND COALESCE(city,'') NOT IN ({dark_excl})
           AND invoice_date IS NOT NULL
         GROUP BY month, city, sku_code, sku_name, box_type
         ORDER BY month DESC, units DESC

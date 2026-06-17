@@ -38,6 +38,10 @@ MH_FILTER_FACILITIES = ["SL PM", "OWN PM"]
 # Tracked separately in the SOP Compliance dashboard.
 PLACEHOLDER_SKUS = ("DEFAULT", "FLEX", "MAGENTO2")
 
+# Dark-store cities excluded from all consumption / DOI / city dashboard views.
+# Add city names here to exclude them globally.
+DARK_STORE_CITIES = ("Darkstore",)
+
 # Gmail email subjects for report identification
 EMAIL_SUBJECTS = {
     "sale_orders":  "Export Job Complete - Copy of Sale Orders (Facility Filter)",

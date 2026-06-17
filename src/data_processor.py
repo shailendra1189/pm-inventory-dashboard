@@ -6,12 +6,18 @@ from src.config import (
     CITY_TAT, DEFAULT_TAT, MOTHER_HUB_FACILITY, MOTHER_HUB_CITY,
     SALE_ORDER_COLS, GATEPASS_COLS, INVENTORY_COLS, MH_SNAPSHOT_COLS, MH_FILTER_FACILITIES,
     EAN_MAPPING_COLS, FACILITY_MAPPING_COLS, BASE_DIR, PLACEHOLDER_SKUS,
-    DOI_BUFFER,
+    DOI_BUFFER, DARK_STORE_CITIES,
 )
 
-# SQL fragment reused in every consumption_log query to exclude placeholder SKUs and bags
-_EXCL = "sku_code NOT IN ({}) AND LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%'".format(
-    ",".join(f"'{s}'" for s in PLACEHOLDER_SKUS)
+_dark_city_list = ",".join(f"'{c}'" for c in DARK_STORE_CITIES)
+
+# SQL fragment reused in every consumption_log query to exclude placeholder SKUs, bags, and dark-store cities
+_EXCL = (
+    "sku_code NOT IN ({skus}) AND LOWER(COALESCE(sku_name,'')) NOT LIKE '%bag%'"
+    " AND COALESCE(city,'') NOT IN ({cities})"
+).format(
+    skus=",".join(f"'{s}'" for s in PLACEHOLDER_SKUS),
+    cities=_dark_city_list,
 )
 
 # SQL fragment to exclude bags from inventory tables
@@ -596,14 +602,15 @@ def get_in_transit_summary():
 
 
 def get_all_cities():
+    excl = ",".join(f"'{c}'" for c in ("Unknown", "") + DARK_STORE_CITIES)
     with db.db_connection() as conn:
         rows = conn.execute(
-            "SELECT DISTINCT city FROM consumption_log WHERE city != 'Unknown' ORDER BY city"
+            f"SELECT DISTINCT city FROM consumption_log WHERE COALESCE(city,'') NOT IN ({excl}) ORDER BY city"
         ).fetchall()
         cities_c = [r["city"] for r in rows]
 
         rows2 = conn.execute(
-            "SELECT DISTINCT to_city FROM transfer_log WHERE to_city != 'Unknown' ORDER BY to_city"
+            f"SELECT DISTINCT to_city FROM transfer_log WHERE COALESCE(to_city,'') NOT IN ({excl}) ORDER BY to_city"
         ).fetchall()
         cities_t = [r["to_city"] for r in rows2]
 
