@@ -109,14 +109,12 @@ show_cols = {
     "ean":            "EAN",
     "brand":          "Brand",
     "inventory":      "Inventory",
-    "daily_rate":     "Daily Rate",
     "doi_display":    "DOI (days)",
     "DOI Status":     "DOI Status",
     "Alert":          "Alert",
 }
 
 show_df = view_df[[c for c in show_cols if c in view_df.columns]].rename(columns=show_cols)
-show_df["Daily Rate"] = show_df["Daily Rate"].round(1)
 
 
 def highlight_row(row):
