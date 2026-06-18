@@ -197,21 +197,38 @@ if detail_df["facility"].nunique() > 1:
     st.plotly_chart(fig_fac, use_container_width=True)
     st.divider()
 
-# ── 7-day consumption trend ───────────────────────────────────────────────────
-st.subheader("📈 7-Day Consumption Trend (All Cities)")
+# ── Consumption trend by brand ────────────────────────────────────────────────
+st.subheader("📈 Consumption Trend by Brand (All Cities)")
 trend_df = dp.get_last_7_days_consumption()
 if not trend_df.empty:
     by_sku_day = trend_df.groupby(["day", "sku_name"])["boxes_consumed"].sum().reset_index()
-    fig2 = px.line(
-        by_sku_day, x="day", y="boxes_consumed", color="sku_name",
-        markers=True,
-        labels={"day": "Date", "boxes_consumed": "Boxes", "sku_name": "SKU"},
-        title="Daily Consumption by SKU — All Cities (Pan India)",
-    )
-    fig2.update_layout(height=400)
-    st.plotly_chart(fig2, use_container_width=True)
+
+    BRANDS = {
+        "LJ": by_sku_day[by_sku_day["sku_name"].str.upper().str.startswith("LJ")],
+        "BW": by_sku_day[by_sku_day["sku_name"].str.upper().str.startswith("BW")],
+        "BB": by_sku_day[by_sku_day["sku_name"].str.upper().str.startswith("BB")],
+        "MM": by_sku_day[by_sku_day["sku_name"].str.upper().str.startswith("MM")],
+    }
+
+    tab_lj, tab_bw, tab_bb, tab_mm = st.tabs(["🔵 LJ", "🟠 BW", "🟢 BB", "🟣 MM"])
+    COLORS = {"LJ": "#3b82f6", "BW": "#f97316", "BB": "#22c55e", "MM": "#a855f7"}
+
+    for tab, brand in zip([tab_lj, tab_bw, tab_bb, tab_mm], ["LJ", "BW", "BB", "MM"]):
+        with tab:
+            bdf = BRANDS[brand]
+            if bdf.empty:
+                st.info(f"No consumption data for {brand} SKUs.")
+            else:
+                fig = px.line(
+                    bdf, x="day", y="boxes_consumed", color="sku_name",
+                    markers=True,
+                    labels={"day": "Date", "boxes_consumed": "Boxes", "sku_name": "SKU"},
+                    title=f"{brand} — Daily Consumption (Pan India)",
+                )
+                fig.update_layout(height=380, legend=dict(orientation="v", x=1.01))
+                st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("No consumption data for last 7 days.")
+    st.info("No consumption data available.")
 
 st.divider()
 
