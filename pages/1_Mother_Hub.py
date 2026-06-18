@@ -203,17 +203,20 @@ trend_df = dp.get_last_7_days_consumption()
 if not trend_df.empty:
     by_sku_day = trend_df.groupby(["day", "sku_name"])["boxes_consumed"].sum().reset_index()
 
-    BRANDS = {
-        "LJ": by_sku_day[by_sku_day["sku_name"].str.upper().str.startswith("LJ")],
-        "BW": by_sku_day[by_sku_day["sku_name"].str.upper().str.startswith("BW")],
-        "BB": by_sku_day[by_sku_day["sku_name"].str.upper().str.startswith("BB")],
-        "MM": by_sku_day[by_sku_day["sku_name"].str.upper().str.startswith("MM")],
-    }
+    def _brand(name):
+        n = name.strip().upper()
+        if n.startswith("LJ"): return "LJ"
+        if n.startswith("BW") or n.startswith("BB"): return "BW / BB"
+        if n.startswith("MM"): return "MM"
+        return "Other"
 
-    tab_lj, tab_bw, tab_bb, tab_mm = st.tabs(["🔵 LJ", "🟠 BW", "🟢 BB", "🟣 MM"])
-    COLORS = {"LJ": "#3b82f6", "BW": "#f97316", "BB": "#22c55e", "MM": "#a855f7"}
+    by_sku_day["brand"] = by_sku_day["sku_name"].apply(_brand)
 
-    for tab, brand in zip([tab_lj, tab_bw, tab_bb, tab_mm], ["LJ", "BW", "BB", "MM"]):
+    BRANDS = {b: by_sku_day[by_sku_day["brand"] == b] for b in ["LJ", "BW / BB", "MM"]}
+
+    tab_lj, tab_bw, tab_mm = st.tabs(["🔵 LJ", "🟠 BW / BB", "🟣 MM"])
+
+    for tab, brand in zip([tab_lj, tab_bw, tab_mm], ["LJ", "BW / BB", "MM"]):
         with tab:
             bdf = BRANDS[brand]
             if bdf.empty:
