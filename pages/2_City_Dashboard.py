@@ -56,7 +56,7 @@ c1.metric("Opening Stock", f"{int(city_df['opening_stock'].sum()):,}")
 c2.metric("Inwarded", f"{int(city_df['inward'].sum()):,}")
 c3.metric("Consumed", f"{int(city_df['consumed'].sum()):,}")
 c4.metric("Current Stock", f"{int(city_df['current_stock'].sum()):,}")
-c5.metric(f"{actual_days}-Day Consumption", f"{int(city_df['consumption_7day'].sum()):,}")
+c5.metric(f"Consumed ({actual_days}d avg)", f"{int(city_df['consumption_7day'].sum()):,}")
 
 st.divider()
 st.subheader(f"📋 {selected_city} — SKU Inventory Detail")
@@ -68,10 +68,10 @@ show = show.rename(columns={
     "sku_code": "SKU Code", "sku_name": "SKU Name", "box_type": "Box Type",
     "opening_stock": "Opening", "inward": "Inward",
     "consumed": "Consumed", "current_stock": "Current Stock",
-    "consumption_7day": f"{actual_days}-Day Cons.", "daily_rate": "Daily Rate",
+    "consumption_7day": "30d Consumed", "daily_rate": "Daily Rate",
     "doi_status": "Status",
 })[["SKU Code", "SKU Name", "Box Type", "Opening", "Inward", "Consumed",
-    "Current Stock", f"{actual_days}-Day Cons.", "Daily Rate", "DOI (days)", "Status"]]
+    "Current Stock", "30d Consumed", "Daily Rate", "DOI (days)", "Status"]]
 
 
 def highlight_row(row):
@@ -86,8 +86,7 @@ st.dataframe(show.style.apply(highlight_row, axis=1),
              use_container_width=True, hide_index=True,
              column_config={"Daily Rate": st.column_config.NumberColumn(format="%.2f")})
 st.caption(
-    f"ℹ️ **Daily Rate** = {actual_days}-day total consumption ÷ {actual_days} "
-    f"(actual days with sale data in the last 7-day window). "
+    f"ℹ️ **Daily Rate** = 30-day total consumption ÷ {actual_days} actual days with sale data. "
     f"Denominator updates automatically as new data is loaded — no manual adjustment needed.  \n"
     f"🛍️ **Bag SKUs**: Consumed column is derived from box scans × bags-per-box ratio "
     f"(configure in **Admin → Bag-Box Mapping**)."

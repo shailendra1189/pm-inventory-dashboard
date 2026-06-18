@@ -302,7 +302,7 @@ def get_actual_data_days(cutoff=None, window=30):
         average and never silently stretches to 8, 9, 10... days.
     """
     if cutoff is None:
-        cutoff = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+        cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
     with db.db_connection() as conn:
         result = conn.execute(
             f"SELECT COUNT(DISTINCT date(invoice_date)) FROM consumption_log "
